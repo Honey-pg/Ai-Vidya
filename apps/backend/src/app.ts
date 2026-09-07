@@ -5,6 +5,7 @@ import assignmentRoutes from './routes/assignments';
 import analyticsRoutes from './routes/analytics';
 import studentAnalyticsRoutes from './routes/studentAnalytics';
 import classesRoutes from './routes/classes';
+import submissionRoutes from './routes/submissions';
 import {
   requireAuthenticatedUser,
   syncVedaUser,
@@ -37,6 +38,8 @@ app.get('/health', (_req, res) => {
 app.use('/api/assignments', assignmentRoutes);
 
 app.use('/api/classes', classesRoutes);
+
+app.use('/api/submissions', submissionRoutes);
 
 app.use(
   '/api/analytics/student',
