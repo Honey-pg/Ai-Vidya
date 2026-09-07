@@ -2,8 +2,10 @@ import { Server } from 'socket.io';
 import http from 'http';
 import { verifyToken } from '@clerk/backend';
 import { AssignmentModel } from '../models/Assignment';
+import { SubmissionModel } from '../models/Submission';
 import { UserModel } from '../models/User';
 import { env } from '../config/env';
+import { canAccessAssignment, normalizeUserEmail } from '../utils/studentAssignmentScope';
 
 export let io: Server;
 
@@ -68,15 +70,15 @@ export function initSocket(server: http.Server): void {
           studentEmails?: string[];
         } | null>();
         if (!doc) return;
-        let allowed = doc.teacherId === clerkUserId || (doc.studentIds?.includes(clerkUserId) ?? false);
-        if (!allowed && doc.studentEmails?.length) {
-          const u = await UserModel.findOne({ clerkUserId }).lean<{ email?: string | null }>();
-          const em = String(u?.email ?? '')
-            .trim()
-            .toLowerCase();
-          if (em && doc.studentEmails.some((e) => String(e).toLowerCase() === em)) allowed = true;
-        }
-        if (!allowed) return;
+
+        const u = await UserModel.findOne({ clerkUserId }).lean<{
+          email?: string | null;
+          role?: 'teacher' | 'student';
+        }>();
+        const email = normalizeUserEmail({ email: u?.email });
+        const role = u?.role === 'teacher' ? 'teacher' : 'student';
+
+        if (!canAccessAssignment(clerkUserId, role, email, doc)) return;
         await socket.join(`assignment:${assignmentId}`);
       } catch (e) {
         console.error('subscribe:assignment', e);
@@ -86,11 +88,50 @@ export function initSocket(server: http.Server): void {
     socket.on('unsubscribe:assignment', (assignmentId: string) => {
       if (assignmentId) socket.leave(`assignment:${assignmentId}`);
     });
+
+    /**
+     * Submission rooms are private: only the submitting student or the
+     * assignment's teacher may join (avoids peer grading-event leakage).
+     */
+    socket.on('subscribe:submission', async (submissionId: string) => {
+      if (!submissionId || !clerkUserId) return;
+      try {
+        const submission = await SubmissionModel.findById(submissionId).lean<{
+          studentId: string;
+          assignmentId: unknown;
+        } | null>();
+        if (!submission) return;
+
+        if (submission.studentId === clerkUserId) {
+          await socket.join(`submission:${submissionId}`);
+          return;
+        }
+
+        const assignment = await AssignmentModel.findById(submission.assignmentId).lean<{
+          teacherId: string;
+        } | null>();
+        if (!assignment || assignment.teacherId !== clerkUserId) return;
+
+        await socket.join(`submission:${submissionId}`);
+      } catch (e) {
+        console.error('subscribe:submission', e);
+      }
+    });
+
+    socket.on('unsubscribe:submission', (submissionId: string) => {
+      if (submissionId) socket.leave(`submission:${submissionId}`);
+    });
   });
 }
 
 export function emitToAssignment(assignmentId: string, event: string, data: unknown): void {
   if (io) {
     io.to(`assignment:${assignmentId}`).emit(event, data);
+  }
+}
+
+export function emitToSubmission(submissionId: string, event: string, data: unknown): void {
+  if (io) {
+    io.to(`submission:${submissionId}`).emit(event, data);
   }
 }

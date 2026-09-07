@@ -11,6 +11,7 @@ initSocket(server);
 async function start(): Promise<void> {
   await connectDB();
   await import('./queues/worker');
+  await import('./queues/gradingWorker');
 
   const port = Number(env.PORT) || 4000;
   server.listen(port, '0.0.0.0', () => {

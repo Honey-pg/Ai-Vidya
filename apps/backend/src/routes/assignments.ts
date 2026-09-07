@@ -14,6 +14,7 @@ import { sanitizeAssignmentRecordForStudent } from '../utils/sanitizeAssignmentF
 import {
   normalizeUserEmail,
   buildAssignmentsListFilter,
+  canAccessAssignment,
 } from '../utils/studentAssignmentScope';
 
 const router = Router();
@@ -174,17 +175,6 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     });
   }
 });
-
-function canAccessAssignment(
-  clerkId: string,
-  role: 'teacher' | 'student',
-  userEmailNormalized: string,
-  doc: { teacherId: string; studentIds?: string[]; studentEmails?: string[] }
-): boolean {
-  if (role === 'teacher') return doc.teacherId === clerkId;
-  if (doc.studentIds?.includes(clerkId)) return true;
-  return doc.studentEmails?.includes(userEmailNormalized) ?? false;
-}
 
 function sendAssignmentPayload(
   res: Response,

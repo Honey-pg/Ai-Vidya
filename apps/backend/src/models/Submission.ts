@@ -16,18 +16,25 @@ export type SubmissionStatus =
   | 'ai_graded'
   | 'graded';
 
+export type ScoreSource = 'auto' | 'ai' | 'teacher';
+
 /** One answer item mirrors the shape of a Question in GeneratedPaper */
 export interface IAnswerItem {
   /** Matches Question.id from GeneratedPaper.sections[].questions[] */
   questionId: string;
   /** The text/letter the student wrote or selected */
   value: string;
-  /** Marks awarded for this answer (populated by grading) */
+  /** Authoritative marks awarded (auto / AI / teacher) */
   score?: number;
   /** Max marks possible for this question (copied from GeneratedPaper at submit time) */
   maxScore?: number;
-  /** Feedback text produced by AI or teacher */
+  /** Authoritative feedback text */
   feedback?: string;
+  /** Immutable AI suggestion — preserved across teacher overrides */
+  aiScore?: number;
+  aiFeedback?: string;
+  /** Who last set the authoritative score/feedback */
+  scoreSource?: ScoreSource;
 }
 
 export interface ISubmission extends Document {
@@ -57,6 +64,12 @@ const AnswerItemSchema = new Schema<IAnswerItem>(
     score: { type: Number },
     maxScore: { type: Number },
     feedback: { type: String },
+    aiScore: { type: Number },
+    aiFeedback: { type: String },
+    scoreSource: {
+      type: String,
+      enum: ['auto', 'ai', 'teacher'],
+    },
   },
   { _id: false }
 );

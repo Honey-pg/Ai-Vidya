@@ -63,4 +63,13 @@ export interface WSEvent {
     result?: GeneratedPaper;
     error?: string;
 }
+/** Socket events for AI-assisted submission grading */
+export interface GradingWSEvent {
+    type: 'grading:started' | 'grading:progress' | 'grading:completed' | 'grading:failed';
+    assignmentId: string;
+    submissionId: string;
+    progress?: number;
+    message?: string;
+    error?: string;
+}
 //# sourceMappingURL=types.d.ts.map

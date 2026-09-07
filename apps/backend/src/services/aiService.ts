@@ -398,3 +398,104 @@ export async function generatePaper(
     createdAt: new Date().toISOString(),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Open-ended (short_answer / long_answer) AI grading
+// ---------------------------------------------------------------------------
+
+export interface OpenEndedGradeItem {
+  questionId: string;
+  questionText: string;
+  type: 'short_answer' | 'long_answer';
+  marks: number;
+  difficulty?: string;
+  referenceAnswer: string;
+  studentAnswer: string;
+}
+
+export interface OpenEndedGradeResult {
+  questionId: string;
+  score: number;
+  feedback: string;
+}
+
+function buildGradingPrompt(items: OpenEndedGradeItem[]): string {
+  const questionsBlock = items
+    .map(
+      (item, i) => `--- Question ${i + 1} ---
+questionId: ${item.questionId}
+type: ${item.type}
+marks: ${item.marks}
+difficulty: ${item.difficulty ?? 'medium'}
+question: ${item.questionText}
+referenceAnswer: ${item.referenceAnswer}
+studentAnswer: ${item.studentAnswer}`
+    )
+    .join('\n\n');
+
+  return `You are an expert examiner. Grade each student answer against the reference answer.
+Award partial credit when appropriate. Score must be a number from 0 to marks (inclusive).
+Feedback should be brief (1-3 sentences) and constructive.
+
+Respond ONLY with valid JSON. No markdown, no code fences. Structure:
+{
+  "grades": [
+    { "questionId": "...", "score": 0, "feedback": "..." }
+  ]
+}
+
+Include exactly one grade object per question below, using the same questionId values.
+
+${questionsBlock}`;
+}
+
+function parseGradingResponse(raw: string, items: OpenEndedGradeItem[]): OpenEndedGradeResult[] {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+  }
+
+  let parsed: { grades?: Array<Record<string, unknown>> };
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error('LLM returned invalid JSON for grading.');
+  }
+
+  if (!parsed.grades || !Array.isArray(parsed.grades)) {
+    throw new Error('LLM grading response missing "grades" array');
+  }
+
+  const byId = new Map(
+    parsed.grades.map((g) => [String(g.questionId ?? ''), g] as const)
+  );
+
+  return items.map((item) => {
+    const g = byId.get(item.questionId);
+    let score = typeof g?.score === 'number' ? g.score : Number(g?.score);
+    if (Number.isNaN(score)) score = 0;
+    score = Math.max(0, Math.min(item.marks, Math.round(score * 100) / 100));
+    const feedback =
+      typeof g?.feedback === 'string' && g.feedback.trim()
+        ? g.feedback.trim()
+        : 'No feedback provided.';
+    return { questionId: item.questionId, score, feedback };
+  });
+}
+
+/**
+ * Grade short/long answer questions via the configured LLM.
+ * Scores are clamped to [0, marks] after parse.
+ */
+export async function gradeOpenEndedAnswers(
+  items: OpenEndedGradeItem[],
+  opts?: { onProgress?: AiProgressCallback }
+): Promise<OpenEndedGradeResult[]> {
+  if (items.length === 0) return [];
+
+  const prompt = buildGradingPrompt(items);
+  opts?.onProgress?.('Sending open-ended answers to AI for grading…', 40);
+  const raw = await callLLM(prompt, opts?.onProgress);
+  opts?.onProgress?.('Parsing AI grades…', 85);
+  return parseGradingResponse(raw, items);
+}

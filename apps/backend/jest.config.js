@@ -9,7 +9,10 @@ module.exports = {
     '^@vedaai/shared/types$': '<rootDir>/../../packages/shared/types.ts',
   },
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', { tsconfig: './tsconfig.json' }],
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      { tsconfig: '<rootDir>/tsconfig.json' },
+    ],
   },
   clearMocks: true,
 };
