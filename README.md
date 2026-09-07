@@ -1,8 +1,8 @@
-# VedaAI – AI Assessment Creator
+# Ai-Vidya – AI Assessment Creator
 
 A production-grade AI-powered assessment and question-paper generator. Monorepo with a **Next.js** frontend and **Node.js + Express** backend, **Clerk** auth (teacher / student roles).
 
-**Contents:** [Architecture](#architecture-overview) · [Tech stack](#tech-stack) · [Security](#security) · [Setup](#setup) · [Clerk setup](#clerk-setup) · [Scripts](#scripts) · [Production](#production) · [Hosted deployment](#hosted-deployment) · [Project structure](#project-structure) · [API](#api-endpoints) · [WebSocket](#websocket-events) · [AI providers](#ai-providers) · [Design decisions](#design-decisions) · [License](#license)
+**Contents:** [Architecture](#architecture-overview) · [Tech stack](#tech-stack) · [Security](#security) · [Setup](#setup) · [Clerk setup](#clerk-setup) · [Scripts](#scripts) · [Production](#production)
 
 ## Architecture Overview
 
@@ -11,7 +11,7 @@ A production-grade AI-powered assessment and question-paper generator. Monorepo 
 │   Frontend  │ ─────────────▶    │   Backend   │ ──────────────▶ │  Worker   │
 │  (Next.js)  │                   │  (Express)  │                 │  (BullMQ) │
 │             │ ◀──── WS ──────   │             │                 │           │
-└─────────────┘   Socket.io       └──────┬──────┘                 └─────┬─────┘
+└─────────────┘   Socket.io       └─────��┬──────┘                 └─────┬─────┘
                                          │                              │
                                     ┌────▼────┐                    ┌─────▼─────┐
                                     │  Redis  │                    │  OpenAI / │
@@ -59,7 +59,7 @@ A production-grade AI-powered assessment and question-paper generator. Monorepo 
 
 ### Shared
 
-- `@vedaai/shared` — TypeScript types shared across frontend and backend via workspace path aliases
+- `@Ai-Vidya/shared` — TypeScript types shared across frontend and backend via workspace path aliases
 
 ### Infrastructure
 
@@ -101,7 +101,7 @@ npm run dev
 
 **Frontend env:** copy `NEXT_PUBLIC_*` and Clerk keys into `apps/frontend/.env.local` (or use root `.env`). `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL` are the **API origin only** (no `/api` suffix).
 
-**`ERR_CONNECTION_REFUSED` on port 4000:** API not running or failed boot. Check the backend process for MongoDB / Redis / Clerk errors. Optionally set `NEXT_PUBLIC_API_URL=http://127.0.0.1:4000` if `localhost` resolves to IPv6 while the API binds IPv4.
+**`ERR_CONNECTION_REFUSED` on port 4000:** API not running or failed boot. Check the backend process for MongoDB / Redis / Clerk errors. Optionally set `NEXT_PUBLIC_API_URL=http://127.0.0.1:4000`
 
 Or run services separately:
 
@@ -164,11 +164,11 @@ Ensure production env vars are set on the server (or via the host UI), not commi
 ## Project Structure
 
 ```
-vedaai/
+Ai-Vidya/
 ├── apps/
 │   ├── frontend/                 # Next.js (App Router) + TypeScript
 │   │   ├── public/
-│   │   │   └── vedaai-logo.svg
+│   │   │   └── Ai-Vidya-logo.svg
 │   │   └── src/
 │   │       ├── app/
 │   │       │   ├── (public)/     # sign-in, sign-up
@@ -191,8 +191,9 @@ vedaai/
 │   │       │   ├── api/          # assignments, analytics, classes, http client
 │   │       │   ├── clerk/        # roleFromClaims
 │   │       │   ├── socket/       # useSocket
-│   │       │   ├── store/        # Zustand
-│   │       │   └── utils/
+│   │       │   │   ├── store/        # Zustand
+│   │       │   │   └── utils/
+│   │       │   └── globals.css
 │   │       └── middleware.ts     # Clerk + role gates
 │   └── backend/                  # Node.js + Express + TypeScript
 │       └── src/
@@ -206,7 +207,7 @@ vedaai/
 │           ├── utils/
 │           └── types/
 ├── packages/
-│   └── shared/                   # @vedaai/shared types
+│   └── shared/                   # @Ai-Vidya/shared types
 ├── docker-compose.yml
 ├── .env.example
 ├── render.yaml
@@ -271,7 +272,7 @@ Use a model with non-zero quota in AI Studio (often `gemini-2.5-flash` on free t
 - **@react-pdf/renderer:** Consistent PDFs across platforms vs browser print.
 - **Redis caching:** Assignment results cached (~1 hour); invalidated on regenerate/delete.
 - **Socket.io rooms:** Per-assignment rooms target progress events to watching clients only.
-- **Shared types:** `@vedaai/shared` keeps frontend and backend interfaces aligned.
+- **Shared types:** `@Ai-Vidya/shared` keeps frontend and backend interfaces aligned.
 - **Clerk + JWT metadata:** Edge middleware reads `role` from the session token to gate teacher vs student routes without a DB hit on every navigation.
 
 ## License
